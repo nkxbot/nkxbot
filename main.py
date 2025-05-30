@@ -58,64 +58,77 @@ class VerifyButton(View):
 
 # --- TICKET SYSTEM ---
 class TicketView(View):
-    def __init__(self):
+    def __init__(self, jeu):
         super().__init__(timeout=None)
-        self.add_item(OpenTicketButton())
+        self.add_item(OpenTicketButton(jeu))
+
 
 class OpenTicketButton(Button):
-    def __init__(self):
-        super().__init__(label="🎫 Open a Ticket", style=discord.ButtonStyle.green)
+    def __init__(self, jeu):
+        self.jeu = jeu
+        super().__init__(label=f"🎫 Open a Ticket ({jeu})", style=discord.ButtonStyle.green)
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.guild
         user = interaction.user
 
-        existing_channel = discord.utils.get(guild.text_channels, name=f"ticket-{user.name.lower()}")
+        # Nettoie le nom du jeu pour en faire un nom de salon valide
+        sanitized_game = re.sub(r'[^a-zA-Z0-9]', '-', self.jeu.lower())
+        ticket_channel_name = f"ticket-{sanitized_game}-{user.name}".lower()
 
+        # Vérifie si l'utilisateur a déjà un ticket pour ce jeu
+        existing_channel = discord.utils.get(guild.text_channels, name=ticket_channel_name)
         if existing_channel:
-            await interaction.response.send_message("❗ You already have an open ticket.", ephemeral=True)
+            await interaction.response.send_message(
+                f"❗ Tu as déjà un ticket ouvert : {existing_channel.mention}", ephemeral=True
+            )
             return
 
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             user: discord.PermissionOverwrite(view_channel=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True),
         }
 
         ticket_channel = await guild.create_text_channel(
-            name=f"ticket-{user.name}",
+            name=ticket_channel_name,
             overwrites=overwrites,
-            reason="New support ticket"
+            reason=f"Ticket ouvert pour {self.jeu}"
         )
 
         await ticket_channel.send(
-            f"🎟️ {user.mention}, thank you for opening a ticket! A staff member will assist you shortly.",
+            f"{user.mention}, bienvenue dans ton ticket pour **{self.jeu}** ! Un membre du staff va bientôt t'aider.",
             view=CloseTicketView()
         )
 
-        await interaction.response.send_message(f"✅ Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
+        await interaction.response.send_message(
+            f"✅ Ton ticket a été créé : {ticket_channel.mention}", ephemeral=True
+        )
+
 
 class CloseTicketButton(Button):
     def __init__(self):
-        super().__init__(label="❌ Close Ticket", style=discord.ButtonStyle.danger)
+        super().__init__(label="❌ Fermer le ticket", style=discord.ButtonStyle.danger)
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.channel.delete(reason="Ticket closed")
+        await interaction.channel.delete(reason="Ticket fermé")
+
 
 class CloseTicketView(View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(CloseTicketButton())
 
+
 @bot.command()
 @commands.has_permissions(administrator=True)
-async def setup_tickets(ctx):
+async def setup_tickets(ctx, *, jeu):
     embed = discord.Embed(
-        title="🐉 Dragon City - Tickets",
-        description="Click the button below to create a ticket and request what you need.\nA staff member will be with you shortly.",
+        title=f"🎟️ {jeu} - Tickets",
+        description="Clique sur le bouton ci-dessous pour créer un ticket.\nUn membre du staff te répondra bientôt.",
         color=discord.Color.orange()
     )
-    await ctx.send(embed=embed, view=TicketView())
+    await ctx.send(embed=embed, view=TicketView(jeu))
 
 # --- EVENTS ---
 @bot.event
