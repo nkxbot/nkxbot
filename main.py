@@ -154,28 +154,8 @@ async def setup_tickets(ctx, *, game):
     )
     await ctx.send(embed=embed, view=TicketView(game))
 
-# --- WELCOME SYSTEM ---
-@bot.event
-async def on_member_update(before: discord.Member, after: discord.Member):
-    # IDs
-    ROLE_MEMBER_ID = 1377787579717521481
-    WELCOME_CHANNEL_ID = 1377786407283724368
-
-    role_member = after.guild.get_role(ROLE_MEMBER_ID)
-
-    # Vérifie si le membre vient de recevoir le rôle "Members"
-    if role_member and role_member not in before.roles and role_member in after.roles:
-        channel = after.guild.get_channel(WELCOME_CHANNEL_ID)
-        if channel:
-            embed = discord.Embed(
-                title=f"🎉 Welcome {after.name}!",
-                description="Welcome and thank you for joining the server!\nFeel free to explore and enjoy your time here 😊",
-                color=discord.Color.green()
-            )
-            embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
-            await channel.send(embed=embed)
 # --- SERVER INVITE SYSTEM ---
-WELCOME_CHANNEL_ID = 1377699765432750272
+INVITE_WELCOME_CHANNEL_ID = 1377699765432750272  # Salon pour les messages d'invitation
 
 invites = {}
 
@@ -190,9 +170,9 @@ async def on_ready():
 async def on_member_join(member):
     await asyncio.sleep(1)  # Delay to ensure invite data is updated
     guild = member.guild
-    channel = guild.get_channel(WELCOME_CHANNEL_ID)
+    channel = guild.get_channel(INVITE_WELCOME_CHANNEL_ID)
     if channel is None:
-        print("⚠️ Welcome channel not found.")
+        print("⚠️ Invite welcome channel not found.")
         return
 
     current_invites = await guild.invites()
@@ -214,24 +194,23 @@ async def on_member_join(member):
                 f"Thanks {used_invite.inviter.mention} for inviting {member.mention}!\n\n"
                 "We hope they enjoy their stay here! 💜"
             ),
-            color=0xFF77FF  # Fuchsia / light purple
+            color=0xFF77FF
         )
         embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
         embed.set_footer(text="Motion Worship")
 
         await channel.send(embed=embed)
-# --- EVENTS ---
+
+# --- ROLE-BASED WELCOME SYSTEM ---
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
-    # IDs
     ROLE_MEMBER_ID = 1377787579717521481
-    WELCOME_CHANNEL_ID = 1377786407283724368
+    ROLE_WELCOME_CHANNEL_ID = 1377786407283724368  # Salon pour message quand un membre devient "Members"
 
     role_member = after.guild.get_role(ROLE_MEMBER_ID)
 
-    # Vérifie si le membre vient de recevoir le rôle "Members"
     if role_member and role_member not in before.roles and role_member in after.roles:
-        channel = after.guild.get_channel(WELCOME_CHANNEL_ID)
+        channel = after.guild.get_channel(ROLE_WELCOME_CHANNEL_ID)
         if channel:
             embed = discord.Embed(
                 title="🌟 Welcome to the server!",
