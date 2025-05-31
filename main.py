@@ -201,7 +201,7 @@ async def on_member_join(member):
         embed = discord.Embed(
             title="🎉 A New Member Has Joined!",
             description=(
-                f"Thanks {used_invite.inviter.mention} for inviting {member.mention}!\n\n"
+                f"Thanks {used_invite.inviter.display_name} for inviting {member.display_name}!\n\n"
                 "We hope they enjoy their stay here! 💜"
             ),
             color=0xFF77FF
@@ -224,7 +224,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         if channel:
             embed = discord.Embed(
                 title="🌟 Welcome to the server!",
-                description=f"Hey {after.mention} 👋\n\nWelcome and thank you for joining **{after.guild.name}**!\nFeel free to explore the channels, meet new people, and enjoy your stay! 🎉",
+                description=f"Hey {after.display_name} 👋\n\nWelcome and thank you for joining **{after.guild.name}**!\nFeel free to explore the channels, meet new people, and enjoy your stay! 🎉",
                 color=discord.Color.fuchsia()
             )
             embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
