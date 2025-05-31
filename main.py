@@ -5,6 +5,7 @@ import os
 from discord.ext import commands
 from discord.ui import Button, View
 import re
+import asyncio
 # --- KEEP ALIVE (Flask) ---
 app = Flask('')
 
@@ -194,6 +195,64 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
             await channel.send(embed=embed)
 
+# --- SERVER INVITE SYSTEM ---
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+INVITE_CODE_TO_TRACK = "SPfzkVBW"
+WELCOME_CHANNEL_ID = 1377699765432750272
+
+# On stocke les invites au démarrage
+invites = {}
+
+@bot.event
+async def on_ready():
+    print(f"✅ Bot logged in as {bot.user}")
+    global invites
+    for guild in bot.guilds:
+        invites[guild.id] = await guild.invites()
+
+@bot.event
+async def on_member_join(member):
+    await asyncio.sleep(1)  # petit délai pour laisser Discord mettre à jour les invites
+    guild = member.guild
+    channel = guild.get_channel(WELCOME_CHANNEL_ID)
+    if channel is None:
+        print("⚠️ Welcome channel not found.")
+        return
+
+    # On récupère les invites actuelles
+    current_invites = await guild.invites()
+    old_invites = invites.get(guild.id, [])
+
+    used_invite = None
+    for invite in current_invites:
+        # Cherche une invite dont le compteur d'utilisation a augmenté
+        old_invite = discord.utils.get(old_invites, code=invite.code)
+        if old_invite and invite.uses > old_invite.uses:
+            used_invite = invite
+            break
+
+    # Met à jour la liste des invites
+    invites[guild.id] = current_invites
+
+    # Vérifie si c'est notre invite
+    if used_invite and used_invite.code == INVITE_CODE_TO_TRACK:
+        embed = discord.Embed(
+            title="🎉 Welcome to the server!",
+            description=(
+                f"Thanks {used_invite.inviter.mention} for inviting {member.mention}!\n\n"
+                f"We hope you both enjoy the stay here! 💜"
+            ),
+            color=0xFF77FF  # couleur fuchsia/mauve clair
+        )
+        embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
+        embed.set_footer(text="Motion Worship")
+
+        await channel.send(embed=embed)
 # --- MAIN ---
 if __name__ == "__main__":
     keep_alive()
