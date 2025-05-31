@@ -60,6 +60,16 @@ class VerifyButton(View):
             except Exception as e:
                 await interaction.response.send_message(f"❌ An error occurred: {e}", ephemeral=True)
 
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def setup_verify(ctx):
+    embed = discord.Embed(
+        title="🔐 Verification",
+        description="Click the **Verify** button below to get the Verified role!",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed, view=VerifyButton())
+
 @bot.event
 async def on_raw_reaction_add(payload):
     if payload.channel_id != RULES_CHANNEL_ID:
