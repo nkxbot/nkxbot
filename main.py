@@ -33,6 +33,10 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # --- VERIFY BUTTON ---
+ROLE_VERIFIED_ID = 1378464100614537378
+ROLE_MEMBER_ID = 1377787579717521481
+RULES_CHANNEL_ID = 1377699766565343405
+
 class VerifyButton(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -41,20 +45,43 @@ class VerifyButton(View):
     async def verify(self, interaction: discord.Interaction, button: discord.ui.Button):
         member = interaction.user
         guild = interaction.guild
-        role_member = guild.get_role(ROLE_MEMBER_ID)
+        role_verified = guild.get_role(ROLE_VERIFIED_ID)
 
-        if role_member in member.roles:
+        if role_verified in member.roles:
             await interaction.response.send_message("You are already verified.", ephemeral=True)
         else:
             try:
-                await member.add_roles(role_member)
-                await interaction.response.send_message("✅ You have been verified and granted access!", ephemeral=True)
-                try:
-                    await member.send(f"Welcome to {guild.name}! You are now verified.")
-                except:
-                    pass
+                await member.add_roles(role_verified)
+                await interaction.response.send_message(
+                    "✅ You have received the Verified role! Please go to the #rules channel and react with ✅ to get full access.",
+                    ephemeral=True
+                )
             except Exception as e:
                 await interaction.response.send_message(f"❌ An error occurred: {e}", ephemeral=True)
+
+@bot.event
+async def on_raw_reaction_add(payload):
+    if payload.channel_id != RULES_CHANNEL_ID:
+        return
+
+    if str(payload.emoji) != "✅":
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    member = guild.get_member(payload.user_id)
+
+    if member is None or member.bot:
+        return
+
+    role_member = guild.get_role(ROLE_MEMBER_ID)
+    if role_member in member.roles:
+        return
+
+    try:
+        await member.add_roles(role_member)
+        await member.send("🎉 You now have full access to the server. Welcome!")
+    except Exception as e:
+        print(f"Error adding Members role: {e}")
 
 # --- TICKET SYSTEM ---
 class TicketView(View):
