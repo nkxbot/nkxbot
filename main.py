@@ -153,29 +153,46 @@ async def setup_tickets(ctx, *, game):
     )
     await ctx.send(embed=embed, view=TicketView(game))
 
+# --- WELCOME SYSTEM ---
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    # IDs
+    ROLE_MEMBER_ID = 1377787579717521481
+    WELCOME_CHANNEL_ID = 1377786407283724368
+
+    role_member = after.guild.get_role(ROLE_MEMBER_ID)
+
+    # Vérifie si le membre vient de recevoir le rôle "Members"
+    if role_member and role_member not in before.roles and role_member in after.roles:
+        channel = after.guild.get_channel(WELCOME_CHANNEL_ID)
+        if channel:
+            embed = discord.Embed(
+                title=f"🎉 Welcome {after.name}!",
+                description="Welcome and thank you for joining the server!\nFeel free to explore and enjoy your time here 😊",
+                color=discord.Color.green()
+            )
+            embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
+            await channel.send(embed=embed)
 # --- EVENTS ---
 @bot.event
-async def on_ready():
-    print(f"✅ Bot logged in as {bot.user}!")
+async def on_member_update(before: discord.Member, after: discord.Member):
+    # IDs
+    ROLE_MEMBER_ID = 1377787579717521481
+    WELCOME_CHANNEL_ID = 1377786407283724368
 
-    bot.add_view(VerifyButton())
+    role_member = after.guild.get_role(ROLE_MEMBER_ID)
 
-    channel = bot.get_channel(VERIFY_CHANNEL_ID)
-    if channel is None:
-        print("⚠️ Verify channel not found.")
-        return
-
-    async for message in channel.history(limit=50):
-        if message.author == bot.user and message.components:
-            print("✅ Verification message already exists.")
-            break
-    else:
-        view = VerifyButton()
-        await channel.send(
-            "Please verify yourself by clicking the button below to gain full access to the server.",
-            view=view
-        )
-        print("✅ Verification message sent.")
+    # Vérifie si le membre vient de recevoir le rôle "Members"
+    if role_member and role_member not in before.roles and role_member in after.roles:
+        channel = after.guild.get_channel(WELCOME_CHANNEL_ID)
+        if channel:
+            embed = discord.Embed(
+                title="🌟 Welcome to the server!",
+                description=f"Hey {after.mention} 👋\n\nWelcome and thank you for joining **{after.guild.name}**!\nFeel free to explore the channels, meet new people, and enjoy your stay! 🎉",
+                color=discord.Color.fuchsia()
+            )
+            embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
+            await channel.send(embed=embed)
 
 # --- MAIN ---
 if __name__ == "__main__":
