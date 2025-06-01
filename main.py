@@ -452,6 +452,36 @@ async def setup_giveaway(ctx):
                 await ctx.message.delete()
             except Exception as e:
                 print(f"Could not delete command message: {e}")
+# --- UTILITARY SYSTEM ---
+@bot.command(name="ping")
+async def ping(ctx):
+    latency = round(bot.latency * 1000)
+    await ctx.send(f"🏓 Pong! Latency: `{latency}ms`")
+
+OWNER_ID = 1197161364913913918  # Ton ID
+
+@bot.command(name="userinfo")
+async def userinfo(ctx, member: discord.Member = None):
+    # Si l'utilisateur n'est pas le propriétaire et tente de mentionner quelqu'un
+    if member and ctx.author.id != OWNER_ID:
+        await ctx.send("❌ You are not authorized to view info about other users.")
+        return
+
+    member = member or ctx.author
+    roles = [role.mention for role in member.roles if role != ctx.guild.default_role]
+
+    embed = discord.Embed(
+        title=f"ℹ️ User Info: {member}",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+    embed.add_field(name="🆔 ID", value=member.id, inline=True)
+    embed.add_field(name="💬 Nickname", value=member.display_name, inline=True)
+    embed.add_field(name="📅 Joined Server", value=member.joined_at.strftime("%Y-%m-%d %H:%M"), inline=False)
+    embed.add_field(name="📅 Created Account", value=member.created_at.strftime("%Y-%m-%d %H:%M"), inline=False)
+    embed.add_field(name=f"🎭 Roles [{len(roles)}]", value=", ".join(roles) or "None", inline=False)
+
+    await ctx.send(embed=embed)
 
 # --- MAIN ---
 if __name__ == "__main__":
