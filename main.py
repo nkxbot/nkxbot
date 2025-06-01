@@ -420,32 +420,38 @@ async def setup_giveaway(ctx):
     else:
         await ctx.author.send("❌ I couldn't find the giveaway channel.")
 # --- DELETE SYSTEM ---
-OWNER_ID = 1197161364913913918
+        OWNER_ID = 1197161364913913918
 
-@bot.command(name="delete")
-async def delete_message(ctx, message_id: int):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("❌ You are not authorized to use this command.")
-        return
+        @bot.command(name="delete")
+        async def delete_message(ctx, message_id: int):
+            if ctx.author.id != OWNER_ID:
+                await ctx.send("❌ You are not authorized to use this command.", delete_after=5)
+                return
 
-    found = False
-    for channel in ctx.guild.text_channels:
-        try:
-            msg = await channel.fetch_message(message_id)
-            await msg.delete()
-            await ctx.send(f"✅ Message `{message_id}` deleted from #{channel.name}.", delete_after=5)
-            found = True
-            break
-        except discord.NotFound:
-            continue
-        except discord.Forbidden:
-            continue
-        except Exception as e:
-            print(f"Error in {channel.name}: {e}")
-            continue
+            found = False
+            for channel in ctx.guild.text_channels:
+                try:
+                    msg = await channel.fetch_message(message_id)
+                    await msg.delete()
+                    confirmation = await ctx.send(f"✅ Message `{message_id}` deleted from #{channel.name}.", delete_after=5)
+                    found = True
+                    break
+                except discord.NotFound:
+                    continue
+                except discord.Forbidden:
+                    continue
+                except Exception as e:
+                    print(f"Error in {channel.name}: {e}")
+                    continue
 
-    if not found:
-        await ctx.send("❌ Message not found or I don't have access to delete it.", delete_after=5)
+            if not found:
+                await ctx.send("❌ Message not found or I don't have access to delete it.", delete_after=5)
+
+            # Supprime la commande elle-même
+            try:
+                await ctx.message.delete()
+            except Exception as e:
+                print(f"Could not delete command message: {e}")
 
 # --- MAIN ---
 if __name__ == "__main__":
