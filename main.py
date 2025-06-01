@@ -239,11 +239,11 @@ async def on_message(message):
         return
 
     if message.channel.id == INVITE_CHECK_CHANNEL_ID:
-        allowed_commands = ["!invite", "!topinvites"]
+        allowed_commands = ["!invite", "!topinvites", "!checkinvites"]  # Ajout de !checkinvites ici
         if not any(message.content.startswith(cmd) for cmd in allowed_commands):
             try:
                 await message.delete()
-                warning = await message.channel.send(f"{message.author.mention} ❌ Only the `!invite` and `!topinvites` commands are allowed in this channel.")
+                warning = await message.channel.send(f"{message.author.mention} ❌ Only the `!invite`, `!topinvites` and `!checkinvites` commands are allowed in this channel.")
                 await asyncio.sleep(3)
                 await warning.delete()
             except Exception as e:
