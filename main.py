@@ -343,12 +343,15 @@ async def setup_giveaway(ctx):
         prize_question = await bot.wait_for("message", check=check, timeout=120)
         await ctx.author.send("⏳ What is the **duration** (e.g., `10m`, `1h`, `2d`) ?")
         duration_question = await bot.wait_for("message", check=check, timeout=120)
+        await ctx.author.send("📋 Do participants need to meet any **requirements** to be eligible? (Send `no` if none)")
+        requirement_question = await bot.wait_for("message", check=check, timeout=120)
     except asyncio.TimeoutError:
         return await ctx.author.send("⌛ Timeout. Giveaway setup canceled.")
 
     message = msg_question.content
     prize = prize_question.content
     duration_str = duration_question.content.lower()
+    requirements = requirement_question.content
 
     time_units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
     duration_seconds = 0
@@ -360,9 +363,13 @@ async def setup_giveaway(ctx):
     else:
         return await ctx.author.send("❌ Invalid duration format. Use `s`, `m`, `h`, or `d`.")
 
+    description = f"**{message}**\n\n🎁 **Prize:** {prize}\n⏳ Ends in: {duration_str}"
+    if requirements.lower() != "no":
+        description += f"\n📌 **Requirements:** {requirements}"
+
     embed = discord.Embed(
         title="🎉 New Giveaway!",
-        description=f"**{message}**\n\n🎁 **Prize:** {prize}\n⏳ Ends in: {duration_str}",
+        description=description,
         color=discord.Color.blue()
     )
     embed.set_footer(text="Click the button below to participate!")
@@ -373,6 +380,7 @@ async def setup_giveaway(ctx):
         await ctx.author.send("✅ Giveaway posted!")
     else:
         await ctx.author.send("❌ I couldn't find the giveaway channel.")
+
 # --- MAIN ---
 if __name__ == "__main__":
     keep_alive()
