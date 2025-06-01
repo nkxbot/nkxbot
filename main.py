@@ -229,6 +229,86 @@ async def on_member_update(before: discord.Member, after: discord.Member):
             )
             embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
             await channel.send(embed=embed)
+# --- INVITE TRACKER SYSTEM ---
+INVITE_CHECK_CHANNEL_ID = 1377699780720853024  # Salon réservé à !invite et !topinvites
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if message.channel.id == INVITE_CHECK_CHANNEL_ID:
+        allowed_commands = ["!invite", "!topinvites"]
+        if not any(message.content.startswith(cmd) for cmd in allowed_commands):
+            try:
+                await message.delete()
+                warning = await message.channel.send(f"{message.author.mention} ❌ Only the `!invite` and `!topinvites` commands are allowed in this channel.")
+                await asyncio.sleep(3)
+                await warning.delete()
+            except Exception as e:
+                print(f"Failed to delete or warn: {e}")
+            return
+
+    await bot.process_commands(message)
+
+@bot.command(name="invite")
+async def check_invites(ctx):
+    if ctx.channel.id != INVITE_CHECK_CHANNEL_ID:
+        return  # Ignore si pas dans le bon salon
+
+    total_invites = 0
+    try:
+        invites_list = await ctx.guild.invites()
+        for invite in invites_list:
+            if invite.inviter and invite.inviter.id == ctx.author.id:
+                total_invites += invite.uses
+    except Exception as e:
+        await ctx.send(f"⚠️ Unable to retrieve invites: {e}")
+        return
+
+    embed = discord.Embed(
+        title="📨 Invite Tracker",
+        description=f"Hey {ctx.author.mention}!\n\nYou currently have **{total_invites} invitation(s)** on the server.",
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="Keep sharing your invite link to gain more!")
+    await ctx.send(embed=embed)
+
+@bot.command(name="topinvites")
+async def top_invites(ctx):
+    try:
+        invites = await ctx.guild.invites()
+        inviter_stats = {}
+
+        for invite in invites:
+            if invite.inviter:
+                inviter = invite.inviter
+                inviter_stats[inviter] = inviter_stats.get(inviter, 0) + invite.uses
+
+        top_invites = sorted(inviter_stats.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        description = ""
+        for i, (inviter, uses) in enumerate(top_invites, 1):
+            description += f"**{i}.** {inviter.mention} → **{uses} invite(s)**\n"
+
+        embed = discord.Embed(
+            title="🏆 Top Inviters",
+            description=description or "No invites found.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        await ctx.send(f"⚠️ Could not fetch top inviters: {e}")
+        # Message automatique s'ils atteignent 10 invitations
+        if total_invites == 10:
+            congrats_embed = discord.Embed(
+                title="🎉 Congratulations!",
+                description=f"{ctx.author.mention} just reached **10 invites**! You're on fire 🔥",
+                color=discord.Color.orange()
+            )
+            congrats_embed.set_footer(text="Keep it up and reach the next milestone!")
+            await ctx.send(embed=congrats_embed)
 
 # --- MAIN ---
 if __name__ == "__main__":
