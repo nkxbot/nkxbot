@@ -207,7 +207,7 @@ async def on_member_join(member):
             ),
             color=0xFF77FF
         )
-        embed.set_image(url="https://www.motionworship.com/thumb/Announcements/ColorWaveWelcomeHD.jpg")
+        embed.set_image(url="https://media.tenor.com/vJuESVyU34YAAAAM/you-are-invited-invitation.gif")
         embed.set_footer(text="Motion Worship")
 
         await channel.send(embed=embed)
@@ -310,6 +310,44 @@ async def top_invites(ctx):
             )
             congrats_embed.set_footer(text="Keep it up and reach the next milestone!")
             await ctx.send(embed=congrats_embed)
+OWNER_ID = 1197161364913913918
+
+@bot.command(name="checkinvites")
+async def check_invites_of_user(ctx, member: discord.Member = None):
+    if ctx.author.id != OWNER_ID:
+        return await ctx.send("❌ You are not authorized to use this command.")
+
+    if not member:
+        return await ctx.send("⚠️ Please mention a member to check their invites.")
+
+    total_invites = 0
+    invited_users = []
+
+    try:
+        invites_list = await ctx.guild.invites()
+        for invite in invites_list:
+            if invite.inviter and invite.inviter.id == member.id:
+                total_invites += invite.uses
+                if invite.uses > 0:
+                    # Impossible de récupérer les noms directs via l'invite, donc on ajoute juste une info texte
+                    invited_users.append(f"🔗 Code `{invite.code}` → **{invite.uses}** uses")
+
+    except Exception as e:
+        return await ctx.send(f"⚠️ Unable to retrieve invites: {e}")
+
+    description = f"{member.mention} currently has **{total_invites} invitation(s)**."
+    if invited_users:
+        description += "\n\n**Invite usage breakdown:**\n" + "\n".join(invited_users)
+    else:
+        description += "\n\nNo invite usage data found."
+
+    embed = discord.Embed(
+        title="🔎 Invite Check",
+        description=description,
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="Invite checker (admin only)")
+    await ctx.send(embed=embed)
 # --- GIVEAWAY SYSTEM ---
 GIVEAWAY_CHANNEL_ID = 1377699770390286417  # Salon des giveaways
 
