@@ -311,80 +311,68 @@ async def top_invites(ctx):
             congrats_embed.set_footer(text="Keep it up and reach the next milestone!")
             await ctx.send(embed=congrats_embed)
 # --- GIVEAWAY SYSTEM ---
-GIVEAWAY_CHANNEL_ID = 1377699770390286417
+GIVEAWAY_CHANNEL_ID = 1377699770390286417  # Salon des giveaways
+
+class ParticipateButton(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Participate", style=discord.ButtonStyle.green, emoji="🎁", custom_id="giveaway_participate")
+    async def participate(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("✅ You're now participating in the giveaway!", ephemeral=True)
 
 @bot.command(name="setup_giveaway")
-@commands.has_permissions(manage_guild=True)
+@commands.has_permissions(administrator=True)
 async def setup_giveaway(ctx):
-    def check_author(m):
-        return m.author == ctx.author and m.channel == ctx.channel
-
-    await ctx.send("📢 What is the **giveaway message**?")
     try:
-        msg = await bot.wait_for('message', check=check_author, timeout=60)
-        giveaway_msg = msg.content
+        await ctx.message.delete()
+    except:
+        pass
+
+    try:
+        await ctx.author.send("📨 Let's create a giveaway!\nWhat is the **giveaway message**?")
+    except discord.Forbidden:
+        return await ctx.send(f"{ctx.author.mention}, I couldn't DM you! Please enable your DMs and try again.")
+
+    def check(m):
+        return m.author == ctx.author and isinstance(m.channel, discord.DMChannel)
+
+    try:
+        msg_question = await bot.wait_for("message", check=check, timeout=120)
+        await ctx.author.send("🎁 What is the **prize**?")
+        prize_question = await bot.wait_for("message", check=check, timeout=120)
+        await ctx.author.send("⏳ What is the **duration** (e.g., `10m`, `1h`, `2d`) ?")
+        duration_question = await bot.wait_for("message", check=check, timeout=120)
     except asyncio.TimeoutError:
-        return await ctx.send("⏰ You took too long to respond. Giveaway setup canceled.")
+        return await ctx.author.send("⌛ Timeout. Giveaway setup canceled.")
 
-    await ctx.send("🎁 What is the **prize**?")
-    try:
-        msg = await bot.wait_for('message', check=check_author, timeout=60)
-        prize = msg.content
-    except asyncio.TimeoutError:
-        return await ctx.send("⏰ You took too long to respond. Giveaway setup canceled.")
+    message = msg_question.content
+    prize = prize_question.content
+    duration_str = duration_question.content.lower()
 
-    await ctx.send("⏳ How long should the giveaway last? (e.g. `10s`, `5m`, `2h`)")
-    try:
-        msg = await bot.wait_for('message', check=check_author, timeout=60)
-        duration_raw = msg.content
-        unit = duration_raw[-1]
-        amount = int(duration_raw[:-1])
-        if unit == 's':
-            duration = timedelta(seconds=amount)
-        elif unit == 'm':
-            duration = timedelta(minutes=amount)
-        elif unit == 'h':
-            duration = timedelta(hours=amount)
-        else:
-            return await ctx.send("❌ Invalid time format. Use `s`, `m`, or `h`.")
-    except Exception:
-        return await ctx.send("❌ Could not parse the duration.")
-
-    end_time = datetime.utcnow() + duration
-
-    class GiveawayView(View):
-        def __init__(self):
-            super().__init__(timeout=None)
-
-        @discord.ui.button(label="Participate", emoji="🎁", style=discord.ButtonStyle.green, custom_id="join_giveaway")
-        async def participate(self, interaction: discord.Interaction, button: Button):
-            user_id = interaction.user.id
-            if user_id not in participants:
-                participants.append(user_id)
-                await interaction.response.send_message("✅ You joined the giveaway!", ephemeral=True)
-            else:
-                await interaction.response.send_message("⚠️ You already joined this giveaway.", ephemeral=True)
-
-    participants = []
+    time_units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+    duration_seconds = 0
+    if duration_str[-1] in time_units:
+        try:
+            duration_seconds = int(duration_str[:-1]) * time_units[duration_str[-1]]
+        except ValueError:
+            return await ctx.author.send("❌ Invalid duration format.")
+    else:
+        return await ctx.author.send("❌ Invalid duration format. Use `s`, `m`, `h`, or `d`.")
 
     embed = discord.Embed(
-        title="🎉 Giveaway Time!",
-        description=f"**{giveaway_msg}**\n\n🎁 **Prize:** {prize}\n⏰ **Ends:** <t:{int(end_time.timestamp())}:R>",
-        color=discord.Color.blurple()
+        title="🎉 New Giveaway!",
+        description=f"**{message}**\n\n🎁 **Prize:** {prize}\n⏳ Ends in: {duration_str}",
+        color=discord.Color.blue()
     )
     embed.set_footer(text="Click the button below to participate!")
 
     giveaway_channel = bot.get_channel(GIVEAWAY_CHANNEL_ID)
-    message = await giveaway_channel.send(embed=embed, view=GiveawayView())
-
-    await asyncio.sleep(duration.total_seconds())
-
-    if participants:
-        winner_id = random.choice(participants)
-        winner = await bot.fetch_user(winner_id)
-        await giveaway_channel.send(f"🎉 Congratulations {winner.mention}! You won **{prize}**!")
+    if giveaway_channel:
+        await giveaway_channel.send(embed=embed, view=ParticipateButton())
+        await ctx.author.send("✅ Giveaway posted!")
     else:
-        await giveaway_channel.send("😢 No one participated in the giveaway.")
+        await ctx.author.send("❌ I couldn't find the giveaway channel.")
 # --- MAIN ---
 if __name__ == "__main__":
     keep_alive()
