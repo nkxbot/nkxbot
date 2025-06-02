@@ -2,6 +2,7 @@ from flask import Flask
 from threading import Thread
 import discord
 import os
+import time
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View
@@ -209,8 +210,7 @@ async def on_member_join(member):
             color=0xFF77FF
         )
         embed.set_image(url="https://media.tenor.com/vJuESVyU34YAAAAM/you-are-invited-invitation.gif")
-        embed.set_footer(text="Motion Worship")
-
+        
         await channel.send(embed=embed)
 
 # --- ROLE-BASED WELCOME SYSTEM ---
@@ -351,13 +351,20 @@ async def check_invites_of_user(ctx, member: discord.Member = None):
     await ctx.send(embed=embed)
 # --- GIVEAWAY SYSTEM ---
 GIVEAWAY_CHANNEL_ID = 1377699770390286417  # Salon des giveaways
+OWNER_ID = 1197161364913913918
+
+giveaways = {}  # Stocke les giveaways avec leur data : {message_id: {"end": timestamp, "participants": set()}}
 
 class ParticipateButton(View):
-    def __init__(self):
+    def __init__(self, message_id):
         super().__init__(timeout=None)
+        self.message_id = message_id
 
     @discord.ui.button(label="Participate", style=discord.ButtonStyle.green, emoji="🎁", custom_id="giveaway_participate")
     async def participate(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        if self.message_id in giveaways:
+            giveaways[self.message_id]["participants"].add(user_id)
         await interaction.response.send_message("✅ You're now participating in the giveaway!", ephemeral=True)
 
 @bot.command(name="setup_giveaway")
@@ -393,15 +400,14 @@ async def setup_giveaway(ctx):
     requirements = requirement_question.content
 
     time_units = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-    duration_seconds = 0
-    if duration_str[-1] in time_units:
-        try:
-            duration_seconds = int(duration_str[:-1]) * time_units[duration_str[-1]]
-        except ValueError:
-            return await ctx.author.send("❌ Invalid duration format.")
-    else:
+    if duration_str[-1] not in time_units:
         return await ctx.author.send("❌ Invalid duration format. Use `s`, `m`, `h`, or `d`.")
+    try:
+        duration_seconds = int(duration_str[:-1]) * time_units[duration_str[-1]]
+    except ValueError:
+        return await ctx.author.send("❌ Invalid duration format.")
 
+    end_time = datetime.utcnow() + timedelta(seconds=duration_seconds)
     description = f"**{message}**\n\n🎁 **Prize:** {prize}\n⏳ Ends in: {duration_str}"
     if requirements.lower() != "no":
         description += f"\n📌 **Requirements:** {requirements}"
@@ -415,10 +421,47 @@ async def setup_giveaway(ctx):
 
     giveaway_channel = bot.get_channel(GIVEAWAY_CHANNEL_ID)
     if giveaway_channel:
-        await giveaway_channel.send(embed=embed, view=ParticipateButton())
+        giveaway_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(None))
+        giveaways[giveaway_message.id] = {
+            "end": end_time,
+            "participants": set(),
+            "prize": prize
+        }
+        # Mettre à jour le bouton avec le bon ID
+        await giveaway_message.edit(view=ParticipateButton(giveaway_message.id))
         await ctx.author.send("✅ Giveaway posted!")
     else:
         await ctx.author.send("❌ I couldn't find the giveaway channel.")
+
+@bot.command(name="timer")
+async def check_timer(ctx):
+    if ctx.author.id != OWNER_ID:
+        return
+    now = datetime.utcnow()
+    for msg_id, data in giveaways.items():
+        remaining = data["end"] - now
+        if remaining.total_seconds() > 0:
+            minutes, seconds = divmod(int(remaining.total_seconds()), 60)
+            hours, minutes = divmod(minutes, 60)
+            await ctx.author.send(f"⏳ Giveaway `{msg_id}` ends in {hours}h {minutes}m {seconds}s.")
+        else:
+            await ctx.author.send(f"⏳ Giveaway `{msg_id}` is already over.")
+
+@bot.command(name="reroll")
+async def reroll_giveaway(ctx, message_id: int):
+    if ctx.author.id != OWNER_ID:
+        return await ctx.send("❌ You are not authorized to reroll giveaways.", delete_after=5)
+
+    data = giveaways.get(message_id)
+    if not data or not data["participants"]:
+        return await ctx.send("❌ No participants found or invalid message ID.", delete_after=5)
+
+    winner_id = random.choice(list(data["participants"]))
+    winner = ctx.guild.get_member(winner_id)
+    if winner:
+        await ctx.send(f"🔄 New winner for giveaway `{message_id}`: {winner.mention} 🏆")
+    else:
+        await ctx.send("❌ Could not find the new winner.", delete_after=5)
 # --- DELETE SYSTEM ---
         OWNER_ID = 1197161364913913918
 
