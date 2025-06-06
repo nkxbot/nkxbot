@@ -3,6 +3,8 @@ from threading import Thread
 import discord
 import os
 import time
+import random
+from collections import defaultdict
 from discord import app_commands
 from discord.ext import commands
 from discord.ui import Button, View
@@ -366,6 +368,38 @@ class ParticipateButton(View):
         if self.message_id in giveaways:
             giveaways[self.message_id]["participants"].add(user_id)
         await interaction.response.send_message("✅ You're now participating in the giveaway!", ephemeral=True)
+
+message = await giveaway_channel.send(embed=embed, view=ParticipateButton())
+await ctx.author.send("✅ Giveaway posted!")
+
+# Stocker les participants dans un set temporaire
+giveaway_participants = set()
+
+# Fonction pour collecter les interactions
+def check_button(interaction):
+    return interaction.data.get("custom_id") == "giveaway_participate" and interaction.message.id == message.id
+
+# Attente de la durée + collecte des participants
+end_time = asyncio.get_event_loop().time() + duration_seconds
+while asyncio.get_event_loop().time() < end_time:
+    try:
+        interaction = await bot.wait_for("interaction", check=check_button, timeout=5)
+        giveaway_participants.add(interaction.user.id)
+    except asyncio.TimeoutError:
+        continue
+
+# Sélection du gagnant
+if giveaway_participants:
+    winner_id = random.choice(list(giveaway_participants))
+    winner = ctx.guild.get_member(winner_id)
+    result_embed = discord.Embed(
+        title="🎉 Giveaway Ended!",
+        description=f"🏆 **Winner:** {winner.mention if winner else 'Unknown'}\n🎁 **Prize:** {prize}",
+        color=discord.Color.purple()
+    )
+    await giveaway_channel.send(embed=result_embed)
+else:
+    await giveaway_channel.send("😕 No participants. No winner this time.")
 
 @bot.command(name="setup_giveaway")
 @commands.has_permissions(administrator=True)
