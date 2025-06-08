@@ -510,8 +510,8 @@ async def entries(ctx, message_id: int):
 # --- DELETE SYSTEM ---
 OWNER_ID = 1197161364913913918
 
-        @bot.command(name="delete")
-        async def delete_message(ctx, message_id: int):
+@bot.command(name="delete")
+async def delete_message(ctx, message_id: int):
             if ctx.author.id != OWNER_ID:
                 await ctx.send("❌ You are not authorized to use this command.", delete_after=5)
                 return
