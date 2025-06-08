@@ -508,7 +508,7 @@ async def entries(ctx, message_id: int):
             await ctx.send(embed=embed)
 
 # --- DELETE SYSTEM ---
-        OWNER_ID = 1197161364913913918
+OWNER_ID = 1197161364913913918
 
         @bot.command(name="delete")
         async def delete_message(ctx, message_id: int):
