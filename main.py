@@ -355,7 +355,7 @@ async def check_invites_of_user(ctx, member: discord.Member = None):
 GIVEAWAY_CHANNEL_ID = 1377699770390286417  # Salon des giveaways
 OWNER_ID = 1197161364913913918
 
-giveaways = {}  # Stocke les giveaways avec leur data : {message_id: {"end": timestamp, "participants": set()}}
+giveaways = {}  # Stocke les giveaways avec leur data : {message_id: {"end": timestamp, "participants": set(), "prize": str}}
 
 class ParticipateButton(View):
     def __init__(self, message_id):
@@ -368,38 +368,6 @@ class ParticipateButton(View):
         if self.message_id in giveaways:
             giveaways[self.message_id]["participants"].add(user_id)
         await interaction.response.send_message("✅ You're now participating in the giveaway!", ephemeral=True)
-
-message = await giveaway_channel.send(embed=embed, view=ParticipateButton())
-await ctx.author.send("✅ Giveaway posted!")
-
-# Stocker les participants dans un set temporaire
-giveaway_participants = set()
-
-# Fonction pour collecter les interactions
-def check_button(interaction):
-    return interaction.data.get("custom_id") == "giveaway_participate" and interaction.message.id == message.id
-
-# Attente de la durée + collecte des participants
-end_time = asyncio.get_event_loop().time() + duration_seconds
-while asyncio.get_event_loop().time() < end_time:
-    try:
-        interaction = await bot.wait_for("interaction", check=check_button, timeout=5)
-        giveaway_participants.add(interaction.user.id)
-    except asyncio.TimeoutError:
-        continue
-
-# Sélection du gagnant
-if giveaway_participants:
-    winner_id = random.choice(list(giveaway_participants))
-    winner = ctx.guild.get_member(winner_id)
-    result_embed = discord.Embed(
-        title="🎉 Giveaway Ended!",
-        description=f"🏆 **Winner:** {winner.mention if winner else 'Unknown'}\n🎁 **Prize:** {prize}",
-        color=discord.Color.purple()
-    )
-    await giveaway_channel.send(embed=result_embed)
-else:
-    await giveaway_channel.send("😕 No participants. No winner this time.")
 
 @bot.command(name="setup_giveaway")
 @commands.has_permissions(administrator=True)
@@ -454,18 +422,44 @@ async def setup_giveaway(ctx):
     embed.set_footer(text="Click the button below to participate!")
 
     giveaway_channel = bot.get_channel(GIVEAWAY_CHANNEL_ID)
-    if giveaway_channel:
-        giveaway_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(None))
-        giveaways[giveaway_message.id] = {
-            "end": end_time,
-            "participants": set(),
-            "prize": prize
-        }
-        # Mettre à jour le bouton avec le bon ID
-        await giveaway_message.edit(view=ParticipateButton(giveaway_message.id))
-        await ctx.author.send("✅ Giveaway posted!")
-    else:
-        await ctx.author.send("❌ I couldn't find the giveaway channel.")
+    if not giveaway_channel:
+        return await ctx.author.send("❌ I couldn't find the giveaway channel.")
+ay_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(None))
+    giveaways[giveaway_message.id] = {
+        "end": end_time,
+        "participants": set(),
+        "prize": prize,
+        "channel": giveaway_channel.id
+    }
+    await giveaway_message.edit(view=ParticipateButton(giveaway_message.id))
+    await ctx.author.send("✅ Giveaway posted!")
+
+    # Lancer la tâche de fin de giveaway
+    async def end_giveaway(message_id):
+        await asyncio.sleep(duration_seconds)
+        data = giveaways.get(message_id)
+        if not data:
+            return
+
+        participants = data["participants"]
+        prize = data["prize"]
+        channel = bot.get_channel(data["channel"])
+
+        if participants:
+            winner_id = random.choice(list(participants))
+            winner = channel.guild.get_member(winner_id)
+            result_embed = discord.Embed(
+                title="🎉 Giveaway Ended!",
+                description=f"🏆 **Winner:** {winner.mention if winner else 'Unknown'}\n🎁 **Prize:** {prize}",
+                color=discord.Color.purple()
+            )
+            await channel.send(embed=result_embed)
+        else:
+            await channel.send("😕 No participants. No winner this time.")
+
+        del giveaways[message_id]
+
+    bot.loop.create_task(end_giveaway(giveaway_message.id))
 
 @bot.command(name="timer")
 async def check_timer(ctx):
@@ -496,6 +490,22 @@ async def reroll_giveaway(ctx, message_id: int):
         await ctx.send(f"🔄 New winner for giveaway `{message_id}`: {winner.mention} 🏆")
     else:
         await ctx.send("❌ Could not find the new winner.", delete_after=5)
+
+@bot.command(name="entries")
+async def entries(ctx, message_id: int):
+            if message_id not in giveaways:
+                return await ctx.send("❌ No giveaway found with that message ID.")
+
+            participant_count = len(giveaways[message_id]["participants"])
+            prize = giveaways[message_id]["prize"]
+
+            embed = discord.Embed(
+                title="🎟️ Giveaway Entries",
+                description=f"**Prize:** {prize}\n👥 **Entries:** {participant_count}",
+                color=discord.Color.blurple()
+            )
+            await ctx.send(embed=embed)
+
 # --- DELETE SYSTEM ---
         OWNER_ID = 1197161364913913918
 
