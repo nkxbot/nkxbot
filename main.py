@@ -424,7 +424,7 @@ async def setup_giveaway(ctx):
     giveaway_channel = bot.get_channel(GIVEAWAY_CHANNEL_ID)
     if not giveaway_channel:
         return await ctx.author.send("❌ I couldn't find the giveaway channel.")
-ay_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(None))
+    giveaway_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(None))
     giveaways[giveaway_message.id] = {
         "end": end_time,
         "participants": set(),
@@ -433,6 +433,7 @@ ay_message = await giveaway_channel.send(embed=embed, view=ParticipateButton(Non
     }
     await giveaway_message.edit(view=ParticipateButton(giveaway_message.id))
     await ctx.author.send("✅ Giveaway posted!")
+
 
     # Lancer la tâche de fin de giveaway
     async def end_giveaway(message_id):
