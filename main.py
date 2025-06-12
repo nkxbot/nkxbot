@@ -26,7 +26,7 @@ def keep_alive():
     t.start()
 
 # --- CONFIG ---
-TOKEN = os.getenv("DISCORD_TOKEN")  # 🔐 Token sécurisé via Replit Secrets
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 VERIFY_CHANNEL_ID = 1377699763562221708
 ROLE_MEMBER_ID = 1377787579717521481
@@ -431,8 +431,10 @@ async def setup_giveaway(ctx):
         "prize": prize,
         "channel": giveaway_channel.id
     }
-    await giveaway_message.edit(view=ParticipateButton(giveaway_message.id))
-    await ctx.author.send("✅ Giveaway posted!")
+    view = ParticipateButton(giveaway_message.id)
+    await giveaway_message.edit(view=view)
+
+    await ctx.author.send(f"✅ Giveaway successfully created in {giveaway_channel.mention}!")
 
 
     # Lancer la tâche de fin de giveaway
@@ -506,6 +508,40 @@ async def entries(ctx, message_id: int):
                 color=discord.Color.blurple()
             )
             await ctx.send(embed=embed)
+async def giveaway_checker():
+    await bot.wait_until_ready()
+    while not bot.is_closed():
+        now = datetime.utcnow().timestamp()
+        to_remove = []
+
+        for message_id, data in giveaways.items():
+            if now >= data["end"]:
+                channel = bot.get_channel(GIVEAWAY_CHANNEL_ID)
+                try:
+                    message = await channel.fetch_message(message_id)
+                except:
+                    continue
+
+                participants = list(data["participants"])
+                if participants:
+                    winner_id = random.choice(participants)
+                    winner = await bot.fetch_user(winner_id)
+                    result_text = f"🎉 Congratulations {winner.mention}! You won **{data['prize']}**!"
+                else:
+                    result_text = "❌ No participants. Giveaway cancelled."
+
+                result_embed = discord.Embed(
+                    title="🎁 Giveaway Ended",
+                    description=result_text,
+                    color=discord.Color.red()
+                )
+                await channel.send(embed=result_embed)
+                to_remove.append(message_id)
+
+        for message_id in to_remove:
+            del giveaways[message_id]
+
+        await asyncio.sleep(30)  # Vérifie toutes les 30 secondes
 
 # --- DELETE SYSTEM ---
 OWNER_ID = 1197161364913913918
@@ -540,6 +576,15 @@ async def delete_message(ctx, message_id: int):
                 await ctx.message.delete()
             except Exception as e:
                 print(f"Could not delete command message: {e}")
+@bot.event
+async def on_ready():
+    print(f"✅ Bot logged in as {bot.user}")
+    global invites
+    for guild in bot.guilds:
+        invites[guild.id] = await guild.invites()
+
+    bot.loop.create_task(giveaway_checker())
+    
 # --- UTILITARY SYSTEM ---
 @bot.command(name="ping")
 async def ping(ctx):
