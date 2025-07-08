@@ -74,9 +74,6 @@ async def setup_verify(ctx):
         color=discord.Color.green()
     )
     await ctx.send(embed=embed, view=VerifyButton())
-intents = discord.Intents.default()
-intents.members = True  # Nécessaire pour gérer les rôles
-bot = commands.Bot(command_prefix="!", intents=intents)
 
 # IDs à personnaliser si nécessaire
 RULES_CHANNEL_ID = 1377699766565343405
