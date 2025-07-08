@@ -74,30 +74,47 @@ async def setup_verify(ctx):
         color=discord.Color.green()
     )
     await ctx.send(embed=embed, view=VerifyButton())
+intents = discord.Intents.default()
+intents.members = True  # Nécessaire pour gérer les rôles
+bot = commands.Bot(command_prefix="!", intents=intents)
 
+# IDs à personnaliser si nécessaire
+RULES_CHANNEL_ID = 1377699766565343405
+MEMBERS_ROLE_ID = 1377787579717521481
+
+class AcceptRulesView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="✅ Accept Rules", style=discord.ButtonStyle.success)
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        role = interaction.guild.get_role(MEMBERS_ROLE_ID)
+        if role in interaction.user.roles:
+            await interaction.response.send_message("You already have access to the server.", ephemeral=True)
+        else:
+            await interaction.user.add_roles(role)
+            await interaction.response.send_message("✅ You have accepted the rules and now have full access!", ephemeral=True)
+
+@bot.command()
+async def setup_rules(ctx):
+    if ctx.channel.id != RULES_CHANNEL_ID:
+        await ctx.send(f"❌ Please use this command in <#{RULES_CHANNEL_ID}>.")
+        return
+
+    embed = discord.Embed(
+        title="📜 Server Rules",
+        description="By clicking the button below, you agree to follow all server rules.\n\nClick the green button to gain full access to the server.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Thank you for respecting the rules.")
+
+    await ctx.send(embed=embed, view=AcceptRulesView())
+
+# Obligatoire pour que le bouton soit actif même après redémarrage
 @bot.event
-async def on_raw_reaction_add(payload):
-    if payload.channel_id != RULES_CHANNEL_ID:
-        return
-
-    if str(payload.emoji) != "✅":
-        return
-
-    guild = bot.get_guild(payload.guild_id)
-    member = guild.get_member(payload.user_id)
-
-    if member is None or member.bot:
-        return
-
-    role_member = guild.get_role(ROLE_MEMBER_ID)
-    if role_member in member.roles:
-        return
-
-    try:
-        await member.add_roles(role_member)
-        await member.send("🎉 You now have full access to the server. Welcome!")
-    except Exception as e:
-        print(f"Error adding Members role: {e}")
+async def on_ready():
+    bot.add_view(AcceptRulesView())
+    print(f"Bot connecté en tant que {bot.user}")
 
 # --- TICKET SYSTEM ---
 class TicketView(View):
